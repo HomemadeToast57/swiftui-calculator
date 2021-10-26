@@ -33,7 +33,7 @@ enum CalcButton: String {
         case .negative, .clear, .percent:
             return Color(.lightGray)
         case .divide, .multiply, .subtract, .add, .equal:
-            return .orange
+            return Color(UIColor(red: 32/255.0, green: 86/255.0, blue: 115/255.0, alpha: 1))
         default:
             return Color(UIColor(red: 55/255.0, green: 55/255.0, blue: 55/255.0, alpha: 1))
         }
@@ -51,9 +51,13 @@ struct ContentView: View {
     @State var accumulator = 0.0
     @State var currentVal = 0.0
     @State var currentOperation: Operation = .none
-    @State var secondOp = false;
+    @State var onNextVal = false;
     @State var isNegative = false;
-    @State var numbersArr: [String] = []
+    @State var numbersArr: [Double] = []
+    @State var numbersArrIndex = 0
+    @State var viewingAns = false
+    @State var hasDecimal = false
+    
     
     let buttons: [[CalcButton]] = [
         
@@ -79,7 +83,8 @@ struct ContentView: View {
                         .font(.system(size: 88))
                         .foregroundColor(.white)
                         .bold()
-                        .minimumScaleFactor(0.01)
+                        .minimumScaleFactor(0.5)
+                        .lineLimit(1)
                     
                     
                 }
@@ -89,6 +94,9 @@ struct ContentView: View {
                         ForEach(row, id:\.self) { item in
                             Button(action: {
                                 self.didTap(button: item)
+                                if (self.onNextVal) {
+                                    
+                                }
                             }, label: {
                                 Text(item.rawValue)
                                     .font(.system(size: 32))
@@ -111,108 +119,166 @@ struct ContentView: View {
     
     func didTap(button: CalcButton) {
         
+        //Update decimal info
+        if (self.value).contains(".") {
+            self.hasDecimal = true;
+        } else {
+            self.hasDecimal = false
+        }
         
+        //CHECK BUTTON
         switch button {
         case .add, .subtract, .multiply, .divide, .equal:
-            isNegative = false
+            
+            onNextVal = true
+            self.inputNum = 0
+            
+            if button != .equal {
+                self.accumulator = Double(self.value) ?? 0.0
+                numbersArr.append(self.accumulator)
+                numbersArrIndex += 1
+            }
+            
+            
             if button == .add {
                 self.currentOperation = .add
-                self.accumulator = Double(self.value) ?? 0.0
-                self.inputNum = 0
-                self.secondOp = true
             } else if button == .subtract {
                 self.currentOperation = .subtract
-                self.accumulator = Double(self.value) ?? 0.0
-                self.inputNum = 0
-                self.secondOp = true
             } else if button == .multiply {
                 self.currentOperation = .multiply
-                self.accumulator = Double(self.value) ?? 0.0
-                self.inputNum = 0
-                self.secondOp = true
             } else if button == .divide {
                 self.currentOperation = .divide
-                self.accumulator = Double(self.value) ?? 0.0
-                self.inputNum = 0
-                self.secondOp = true
             } else if button == .equal {
                 
-                self.secondOp = false
-                
+                //DO OPERATION
+                onNextVal = false
                 currentVal = Double(self.value) ?? 0.0
+                numbersArr.append(currentVal)
+                numbersArrIndex += 1
                 
+                
+                //SAVE FIRST VAL
+                
+                var opVal = 0.0
+                
+                
+                //CHECK FOR OPERATION
                 switch self.currentOperation {
                 case .add:
-                    let opVal = self.accumulator + self.currentVal
-                    self.value = (floor(opVal) == opVal) ? "\(Int(opVal))" : forTrailingZero(temp: opVal)
+                    opVal = self.accumulator + self.currentVal
                     break
                 case .subtract:
-                    let opVal = self.accumulator - self.currentVal
-                    self.value = (floor(opVal) == opVal) ? "\(Int(opVal))" : forTrailingZero(temp: opVal)
+                    opVal = self.accumulator - self.currentVal
                     break
                 case .multiply:
-                    let opVal = self.accumulator * self.currentVal
-                    self.value = (floor(opVal) == opVal) ? "\(Int(opVal))" : forTrailingZero(temp: opVal)
+                    opVal = self.accumulator * self.currentVal
                     break
                 case .divide:
-                    let opVal = self.accumulator / self.currentVal
-                    self.value = (floor(opVal) == opVal) ? "\(Int(opVal))" : forTrailingZero(temp: opVal)
+                    if self.currentVal != 0 {
+                        opVal = self.accumulator / self.currentVal
+                    } else {
+                        self.value = "Cannot divide by 0 😡"
+                        inputNum = 0
+                        onNextVal = false
+                        return
+                    }
                     break
                 case .none:
                     break
                 }
                 
-                print("Acc = \(self.accumulator)")
-                print("CurrentVal = \(self.currentVal)")
+                self.value = (floor(opVal) == opVal) ? "\(Int(opVal))" : forTrailingZero(temp: opVal)
+                
+                
+                
+                
+                
             }
             break
         case .clear:
-            
-            self.currentVal = 0.0
-            self.accumulator = 0.0
-            self.value = "0"
-            self.currentOperation = .none
-            self.inputNum = 0
-            
+            allClear()
             break
         case .decimal:
+            let number = button.rawValue
+            if !hasDecimal {
+                if inputNum == 0 {
+                    self.value = number
+                    inputNum += 1
+                } else {
+                    self.value = self.value + number
+                    inputNum += 1
+                }
+            } else if inputNum == 0 {
+                self.value = number
+            }
             break
         case .negative:
+            //pos to neg
             if !isNegative {
-                self.value = "-\(self.value)"
-                isNegative = true
-                break
+                self.value = "-" + self.value
             }
+            //neg to pos
             else {
-                break
+                let range = (self.value).index((self.value).startIndex, offsetBy: 1)..<(self.value).endIndex
+                self.value = String((self.value)[range])
             }
+            self.isNegative = !self.isNegative
         case .percent:
+            if !onNextVal {
+                break
+            } else {
+                //do calculations
+                
+                var newVal = 0.0
+                
+                switch currentOperation {
+                case .add:
+                    newVal = numbersArr.last! + (numbersArr.last! * ((Double(self.value) ?? 0.0) / 100))
+                case .subtract:
+                    newVal = numbersArr.last! - (numbersArr.last! * ((Double(self.value) ?? 0.0) / 100))
+                case .multiply:
+                    newVal = numbersArr.last! * (numbersArr.last! * ((Double(self.value) ?? 0.0) / 100))
+                case .divide:
+                    if numbersArr.last == 0.0 {
+                        self.value = "Cannot divide by 0 😡"
+                        inputNum = 0
+                        onNextVal = false
+                        return
+                    } else {
+                        newVal = numbersArr.last! / (numbersArr.last! * ((Double(self.value) ?? 0.0) / 100))
+                    }
+                case .none:
+                    break
+                }
+                
+                numbersArr.append(newVal)
+                self.value = (floor(newVal) == newVal) ? "\(Int(newVal))" : forTrailingZero(temp: newVal)
+                
+                //reset things
+                inputNum = 0
+                onNextVal = false
+            }
             break
         default:
+            
+            //reg number
             let number = button.rawValue
-            if secondOp && inputNum == 0 {
-                if (isNegative) {
-                    self.value = "-" + number
-                    self.inputNum+=1
-                } else {
-                    self.value = number
-                    self.inputNum+=1
-                }
+            if inputNum == 0 {
+                
+                self.value = number
+                inputNum += 1
             } else {
-                if (self.value == "0" && inputNum == 0) {
-                    value = number
-                    self.inputNum+=1
-                }
-                else {
-                    self.value = "\(self.value)\(number)"
-                    self.inputNum+=1
-                }
+                self.value = self.value + number
+                inputNum += 1
             }
             
         }
         
-        
-        print(inputNum)
+//        print("Val \(self.value)")
+//        print("ACC: \(self.accumulator)")
+//        print("CUR \(self.currentVal)")
+//        print("OP \(self.currentOperation)")
+//        print("ARR \(self.numbersArr)")
     }
     
     func buttonWidth(item: CalcButton) -> CGFloat {
@@ -229,6 +295,20 @@ struct ContentView: View {
     func forTrailingZero(temp: Double) -> String {
         let tempVar = String(format: "%g", temp)
         return tempVar
+    }
+    
+    func allClear() {
+        value = "0"
+        inputNum = 0
+        accumulator = 0.0
+        currentVal = 0.0
+        currentOperation = Operation.none
+        onNextVal = false;
+        isNegative = false;
+        numbersArr = []
+        numbersArrIndex = 0
+        viewingAns = false
+        hasDecimal = false
     }
 }
 
