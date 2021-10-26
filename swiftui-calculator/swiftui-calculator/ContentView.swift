@@ -51,6 +51,9 @@ struct ContentView: View {
     @State var accumulator = 0.0
     @State var currentVal = 0.0
     @State var currentOperation: Operation = .none
+    @State var secondOp = false;
+    @State var isNegative = false;
+    @State var numbersArr: [String] = []
     
     let buttons: [[CalcButton]] = [
         
@@ -72,10 +75,11 @@ struct ContentView: View {
                 //TEXT DISPLAY
                 HStack {
                     Spacer()
-                    Text(value)
+                    Text(self.value)
                         .font(.system(size: 88))
                         .foregroundColor(.white)
                         .bold()
+                        .minimumScaleFactor(0.01)
                     
                     
                 }
@@ -110,46 +114,49 @@ struct ContentView: View {
         
         switch button {
         case .add, .subtract, .multiply, .divide, .equal:
+            isNegative = false
             if button == .add {
                 self.currentOperation = .add
                 self.accumulator = Double(self.value) ?? 0.0
-                self.value = "0"
                 self.inputNum = 0
+                self.secondOp = true
             } else if button == .subtract {
                 self.currentOperation = .subtract
                 self.accumulator = Double(self.value) ?? 0.0
-                self.value = "0"
                 self.inputNum = 0
+                self.secondOp = true
             } else if button == .multiply {
                 self.currentOperation = .multiply
                 self.accumulator = Double(self.value) ?? 0.0
-                self.value = "0"
                 self.inputNum = 0
+                self.secondOp = true
             } else if button == .divide {
                 self.currentOperation = .divide
                 self.accumulator = Double(self.value) ?? 0.0
-                self.value = "0"
                 self.inputNum = 0
+                self.secondOp = true
             } else if button == .equal {
+                
+                self.secondOp = false
                 
                 currentVal = Double(self.value) ?? 0.0
                 
                 switch self.currentOperation {
                 case .add:
                     let opVal = self.accumulator + self.currentVal
-                    self.value = (floor(opVal) == opVal) ? "\(Int(opVal))" : String(format: "%.4f", opVal)
+                    self.value = (floor(opVal) == opVal) ? "\(Int(opVal))" : forTrailingZero(temp: opVal)
                     break
                 case .subtract:
                     let opVal = self.accumulator - self.currentVal
-                    self.value = (floor(opVal) == opVal) ? "\(Int(opVal))" : String(format: "%.4f", opVal)
+                    self.value = (floor(opVal) == opVal) ? "\(Int(opVal))" : forTrailingZero(temp: opVal)
                     break
                 case .multiply:
                     let opVal = self.accumulator * self.currentVal
-                    self.value = (floor(opVal) == opVal) ? "\(Int(opVal))" : String(format: "%.4f", opVal)
+                    self.value = (floor(opVal) == opVal) ? "\(Int(opVal))" : forTrailingZero(temp: opVal)
                     break
                 case .divide:
                     let opVal = self.accumulator / self.currentVal
-                    self.value = (floor(opVal) == opVal) ? "\(Int(opVal))" : String(format: "%.4f", opVal)
+                    self.value = (floor(opVal) == opVal) ? "\(Int(opVal))" : forTrailingZero(temp: opVal)
                     break
                 case .none:
                     break
@@ -168,20 +175,44 @@ struct ContentView: View {
             self.inputNum = 0
             
             break
-        case .decimal, .negative, .percent:
+        case .decimal:
+            break
+        case .negative:
+            if !isNegative {
+                self.value = "-\(self.value)"
+                isNegative = true
+                break
+            }
+            else {
+                break
+            }
+        case .percent:
             break
         default:
             let number = button.rawValue
-            if (self.value == "0" && inputNum == 0) {
-                value = number
-                self.inputNum+=1
+            if secondOp && inputNum == 0 {
+                if (isNegative) {
+                    self.value = "-" + number
+                    self.inputNum+=1
+                } else {
+                    self.value = number
+                    self.inputNum+=1
+                }
+            } else {
+                if (self.value == "0" && inputNum == 0) {
+                    value = number
+                    self.inputNum+=1
+                }
+                else {
+                    self.value = "\(self.value)\(number)"
+                    self.inputNum+=1
+                }
             }
-            else {
-                self.value = "\(self.value)\(number)"
-                self.inputNum+=1
-            }
+            
         }
         
+        
+        print(inputNum)
     }
     
     func buttonWidth(item: CalcButton) -> CGFloat {
@@ -193,6 +224,11 @@ struct ContentView: View {
     
     func buttonHeight() -> CGFloat {
         return ((UIScreen.main.bounds.width - (5*12)) / 4)
+    }
+    
+    func forTrailingZero(temp: Double) -> String {
+        let tempVar = String(format: "%g", temp)
+        return tempVar
     }
 }
 
